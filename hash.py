@@ -365,6 +365,16 @@ class Ring(object):
         self.print_info()
 
 
+    def evaluate_gaussian_distribution(self):
+        for node in self.nodes:
+            node.clean_writes()
+        for i in range(0, self.W):
+            key_hash = int(math.ceiling(random.gauss(self.E-1/2,math.sqrt(self.E-1))
+                # Need to check for values out of range
+            self.write_to_node(key_hash)
+        self.print_info()
+
+
     def count_real_nodes(self):
         return len(self.real_nodes)
 
