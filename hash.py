@@ -87,7 +87,7 @@ class Node(object):
 
 class Ring(object):
     #We should investigate the effects of the size of the ring too, perhaps
-    def __init__(self, S, E, N, W, I, Sm, keys, tokens=0):
+    def __init__(self, S, E, N, W, I, Sm, keys, tokens=0, lb=False, eval_function=0):
         self.nodes = []         # real and tokens
         self.real_nodes = []
         self.S = S
@@ -98,21 +98,23 @@ class Ring(object):
         self.Sm = Sm
         self.keys = keys
         self.tokens = tokens
+        self.lb = lb
         self.add_nodes = self.add_nodes_randomly  #method used to add nodes
 
+        evaluation_function_options = {0 : self.evaluate_random, 1 : self.evaluate_gaussian_flat, 2 : self.evaluate_gaussian_peak }
+        self.eval_function = evaluation_function_options[eval_function]
         
         #self.add_nodes_randomly(3)
         self.initialize_ring()
         self.insert_extents()
-        self.print_info()
+        #self.print_info()
         #self.add_nodes_randomly(20)
         print "********************************"
-        self.print_info()
+        #self.print_info()
         self.check_corectness_of_replicas()
-        #import pdb; pdb.set_trace()
-        #self.add_nodes(S)
-        #self.evaluate()
-        self.add_servers_and_evaluate_random()
+       
+
+        self.add_servers_and_evaluate(self.eval_function)
 
 
     def initialize_ring(self):
@@ -291,6 +293,7 @@ class Ring(object):
 
     
     def check_corectness_of_replicas(self):
+        """ Test to make sure we are not messing anything up"""
         #for every node, make sure it contains all the data of the nodes it replicates.
         for node in self.real_nodes:
             for replicated_node in node.replicates:
@@ -332,9 +335,12 @@ class Ring(object):
     def write_to_node(self, key_hash):
         node_index = self.find_primary_node_for_key(key_hash)
         # Write randomly to one of the node's replicas, or the node itself
-        i = random.randint(0, self.N)
-        if i < self.N:
-            self.real_nodes[node_index].replicated_by[i].write()
+        if self.lb:
+            i = random.randint(0, self.N)
+            if i < self.N:
+                self.real_nodes[node_index].replicated_by[i].write()
+            else:
+                self.real_nodes[node_index].write()
         else:
             self.real_nodes[node_index].write()
 
@@ -368,23 +374,30 @@ class Ring(object):
         return node_index
 
 
-    def add_servers_and_evaluate_random(self):
+    def add_servers_and_evaluate(self, func):
+        while len(self.real_nodes) < self.Sm:
+            print "Adding servers"
+            self.add_nodes(self.I)
+            func()
+
+    def add_servers_and_evaluate_random(self, func):
         while len(self.real_nodes) < self.Sm:
             print "Adding servers"
             self.add_nodes(self.I)
             self.evaluate_random()
 
-    def add_servers_and_evaluate_flat(self):
+    def add_servers_and_evaluate_flat(self, func):
         while len(self.real_nodes) < self.Sm:
             print "Adding servers"
             self.add_nodes(self.I)
             self.evaluate_gaussian_flat()
 
-    def add_servers_and_evaluate_peak(self):
+    def add_servers_and_evaluate_peak(self, func):
         while len(self.real_nodes) < self.Sm:
             print "Adding servers"
             self.add_nodes(self.I)
-            self.evaluate_gaussian_peak()
+            #self.evaluate_gaussian_peak()
+            func()
 
     def evaluate_random(self):
         for node in self.nodes:
@@ -398,7 +411,7 @@ class Ring(object):
         for node in self.nodes:
             node.clean_writes()
         for i in range(0, self.W):
-            key_hash = int(math.ceiling(random.gauss((self.E-1)/2, self.get_standard_deviation())))
+            key_hash = int(math.ceil(random.gauss((self.E-1)/2, self.get_standard_deviation())))
             # Need to check for values out of range
             self.write_to_node(key_hash)
         self.print_info()
@@ -407,7 +420,7 @@ class Ring(object):
         for node in self.nodes:
             node.clean_writes()
         for i in range(0, self.W):
-            key_hash = int(math.ceiling(random.gauss((self.E-1)/2,(self.E-1)*0.025)))
+            key_hash = int(math.ceil(random.gauss((self.E-1)/2, math.sqrt((self.E-1)*0.025))))
             # Need to check for values out of range(self.E-1)
             self.write_to_node(key_hash)
         self.print_info()
@@ -417,13 +430,14 @@ class Ring(object):
 
 
     def print_info(self):
-        for node in self.nodes:
-             print node
+        # for node in self.nodes:
+        #      print node
         #import pdb; pdb.set_trace()
-        # dev = self.get_standard_deviation()
-        # desired = self.W * self.N / len(self.real_nodes)
-        # percentage_offset = dev * 100 / desired
-        # print "Number of servers: %d Standard deviation: %d (%d%% off desired load)" % (self.count_real_nodes(), dev, percentage_offset)
+        dev = self.get_standard_deviation()
+        desired = self.W * self.N / len(self.real_nodes)
+        percentage_offset = dev * 100 / desired
+        print "Function: %s Tokens: %d Load Balancing: %s Servers: %d Standard deviation: %d (%d%% off)" % (self.eval_function.__name__, self.tokens, str(self.lb),
+            self.count_real_nodes(), dev, percentage_offset)
 
 
     def get_standard_deviation(self):
@@ -451,15 +465,17 @@ def main():
     parser.add_argument('-W', type=int, help='Workload', default=1000000)
     parser.add_argument('-I', type=int, help='Server increment', default=5)
     parser.add_argument('-Sm', type=int, help='Maximum number of servers', default=30)
-    parser.add_argument('-K', type=int, help='Number of keys on the ring', default=1000)
-
+    parser.add_argument('-K', type=int, help='Number of keys on the ring', default=10000)
+    parser.add_argument('-T', type=int, help='Number of tokens per node', default=0)
+    parser.add_argument('-lb', help='Turn on load balancing', action='store_true')
+    parser.add_argument('-D', type=int, help='Write distribution model', default=0)
+ 
 
     args=parser.parse_args()
 
-    #ring = Ring(args.S, args.E, args.N, args.W, args.I, args.Sm, args.K)
-    ring = Ring(5, 200, 3, 100, 1, 20, 100, 1)
-    #ring.evaluate()
-    #ring.print_info()
+    # python -lb -T 5 
+    ring = Ring(args.S, args.E, args.N, args.W, args.I, args.Sm, args.K, args.T, args.lb, args.D)
+
 
 
 
