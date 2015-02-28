@@ -14,6 +14,7 @@ class Node(object):
         self.real_node = parent         # If the node is just a token, this points to the real node
         self.replicates = []            # List of nodes that this node replicates
         self.replicated_by = []         # List of nodes that hold this node's replicas. 
+        self.tokens = []                # List of token positions for this node
 
     def write(self):
         """ this method is used to access/modify extents during the testing phase."""
@@ -164,24 +165,19 @@ class Ring(object):
                 next_server = random.randint(0, self.keys-1)
             new_node = Node(next_server)
 
-            # Find the node whose position is immediately smaller, to determine the range of extents to take over
-            range_start = -1
-            for i in range(0, len(self.nodes)):
-                if self.nodes[i].position < new_node.position and (new_node.position - self.nodes[i].position) < (new_node.position - range_start):
-                    range_start = self.nodes[i].position
-            # if we found no applicable previous node, it means current node it the smallest positioned node, so its predecessor is the
-            # last node on the ring
-            if range_start == -1 and len(self.nodes) > 0:
-                range_start = self.nodes[-1].position
+            #add the tokens, if any
+            for i in range (0, self.tokens):
+                next_server = random.randint(0, self.keys-1)
+                while (self.is_taken(next_server)):
+                    next_server = random.randint(0, self.keys-1)
+                self.nodes += [Node(next_server, new_node)]
+                new_node.tokens += [next_server]
+            self.nodes.sort(key=lambda x: x.position, reverse=False)
+            
 
-            # go through all the real nodes, and check if their extents are anywhere in the range of the new node
-            transfer_data = {}
-            for node in self.real_nodes:
-                for extent in node.data:
-                    if (range_start > new_node.position and extent < new_node.position) or (extent <= new_node.position and extent > range_start):
-                        if extent not in transfer_data:
-                            transfer_data[extent] = 0
-                        transfer_data[extent] += node.data[extent]
+            # add the transfer data to the new node
+            transfer_data = self.get_transfer_data(new_node)
+            new_node.data = transfer_data
 
             # remove the transfer data from all existing nodes
             for node in self.real_nodes:
@@ -190,24 +186,43 @@ class Ring(object):
                         del node.data[extent]
                     if extent in node.replicated_data:
                         del node.replicated_data[extent]
-            
-            # add the transfer data to the new node
-            new_node.data = transfer_data
-            
+                
             self.nodes += [new_node]
             self.real_nodes += [new_node]
             self.real_nodes.sort(key=lambda x: x.position, reverse=False)
             self.nodes.sort(key=lambda x: x.position, reverse=False)
             self.redistribute_replicas(new_node)
 
-            #add the tokens, if any
-            for i in range (0, self.tokens):
-                next_server = random.randint(0, self.keys-1)
-                while (self.is_taken(next_server)):
-                    next_server = random.randint(0, self.keys-1)
-                self.nodes += [Node(next_server, new_node)]
 
-            self.nodes.sort(key=lambda x: x.position, reverse=False)
+    def get_transfer_data(self, node):
+        # Find the node whose position is immediately smaller, to determine the range of extents to take over
+        positions = [node.position]
+        for token in node.tokens:
+            positions +=[token]
+
+        transfer_data = {}    
+        for pos in positions:    
+            range_start = -1
+            for i in range(0, len(self.nodes)):
+                if self.nodes[i].position < pos and (pos - self.nodes[i].position) < (pos - range_start):
+                    range_start = self.nodes[i].position
+            
+            # if we found no applicable previous node, it means current node it the smallest positioned node, so its predecessor is the
+            # last node on the ring
+            if range_start == -1 and len(self.nodes) > 0:
+                range_start = self.nodes[-1].position
+
+            # go through all the real nodes, and check if their extents are anywhere in the range of the new node
+            for node in self.real_nodes:
+                for extent in node.data:
+                    if (range_start > pos and extent < pos) or (extent <= pos and extent > range_start):
+                        if extent not in transfer_data:
+                            transfer_data[extent] = 0
+                        transfer_data[extent] += node.data[extent]
+
+
+        return transfer_data
+
 
         
 
@@ -309,13 +324,13 @@ class Ring(object):
 
     def write_extent(self, extent):
         """ Extent represented as its hash key number"""
-       
         node_index = self.find_primary_node_for_key(extent)
         node = self.real_nodes[node_index] 
         node.add_extent(extent)
 
         for replica_node in node.replicated_by:
             replica_node.add_extent_replica(extent)
+
 
     def write_to_node(self, key_hash):
         node_index = find_primary_node_for_key(key_hash)
@@ -346,6 +361,13 @@ class Ring(object):
                 if self.real_nodes[i].position == parent_position:
                     node_index = i
                     break
+        else:
+            #if this is not a token, we still need to translate the node index into the real node index
+            for i in range (0, len(self.real_nodes)):
+                if self.real_nodes[i].position == self.nodes[node_index].position:
+                    node_index = i
+                    break
+
         return node_index
 
 
@@ -361,16 +383,6 @@ class Ring(object):
             node.clean_writes()
         for i in range(0, self.W):
             key_hash = random.randint(0, self.keys-1)
-            self.write_to_node(key_hash)
-        self.print_info()
-
-
-    def evaluate_gaussian_distribution(self):
-        for node in self.nodes:
-            node.clean_writes()
-        for i in range(0, self.W):
-            key_hash = int(math.ceiling(random.gauss(self.E-1/2,math.sqrt(self.E-1))
-                # Need to check for values out of range
             self.write_to_node(key_hash)
         self.print_info()
 
@@ -420,7 +432,7 @@ def main():
     args=parser.parse_args()
 
     #ring = Ring(args.S, args.E, args.N, args.W, args.I, args.Sm, args.K)
-    ring = Ring(3, 10, 2, 100, 1, 20, 100, 2)
+    ring = Ring(3, 10, 2, 100, 1, 20, 100, 1)
     #ring.evaluate()
     #ring.print_info()
 
