@@ -105,14 +105,14 @@ class Ring(object):
         self.initialize_ring()
         self.insert_extents()
         self.print_info()
-        self.add_nodes_randomly(20)
+        #self.add_nodes_randomly(20)
         print "********************************"
         self.print_info()
         self.check_corectness_of_replicas()
         #import pdb; pdb.set_trace()
         #self.add_nodes(S)
         #self.evaluate()
-        #self.add_servers_and_evaluate()
+        self.add_servers_and_evaluate_random()
 
 
     def initialize_ring(self):
@@ -330,7 +330,7 @@ class Ring(object):
 
 
     def write_to_node(self, key_hash):
-        node_index = find_primary_node_for_key(key_hash)
+        node_index = self.find_primary_node_for_key(key_hash)
         # Write randomly to one of the node's replicas, or the node itself
         i = random.randint(0, self.N)
         if i < self.N:
@@ -368,14 +368,25 @@ class Ring(object):
         return node_index
 
 
-    def add_servers_and_evaluate(self):
+    def add_servers_and_evaluate_random(self):
         while len(self.real_nodes) < self.Sm:
             print "Adding servers"
             self.add_nodes(self.I)
-            self.evaluate()
+            self.evaluate_random()
 
+    def add_servers_and_evaluate_flat(self):
+        while len(self.real_nodes) < self.Sm:
+            print "Adding servers"
+            self.add_nodes(self.I)
+            self.evaluate_gaussian_flat()
 
-    def evaluate_random_distribution(self):
+    def add_servers_and_evaluate_peak(self):
+        while len(self.real_nodes) < self.Sm:
+            print "Adding servers"
+            self.add_nodes(self.I)
+            self.evaluate_gaussian_peak()
+
+    def evaluate_random(self):
         for node in self.nodes:
             node.clean_writes()
         for i in range(0, self.W):
@@ -383,21 +394,21 @@ class Ring(object):
             self.write_to_node(key_hash)
         self.print_info()
 
-    def evaluate_gaussian_distribution_flat(self):
+    def evaluate_gaussian_flat(self):
         for node in self.nodes:
             node.clean_writes()
         for i in range(0, self.W):
-            key_hash = int(math.ceiling(random.gauss((self.E-1)/2,math.sqrt(self.E-1))
-                # Need to check for values out of range
+            key_hash = int(math.ceiling(random.gauss((self.E-1)/2, self.get_standard_deviation())))
+            # Need to check for values out of range
             self.write_to_node(key_hash)
         self.print_info()
 
-    def evaluate_gaussian_distribution_peak(self):
+    def evaluate_gaussian_peak(self):
         for node in self.nodes:
             node.clean_writes()
         for i in range(0, self.W):
-            key_hash = int(math.ceiling(random.gauss((self.E-1)/2,(self.E-1)*0.025)
-                # Need to check for values out of range(self.E-1)
+            key_hash = int(math.ceiling(random.gauss((self.E-1)/2,(self.E-1)*0.025)))
+            # Need to check for values out of range(self.E-1)
             self.write_to_node(key_hash)
         self.print_info()
 
