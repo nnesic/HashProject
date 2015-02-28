@@ -105,9 +105,10 @@ class Ring(object):
         self.initialize_ring()
         self.insert_extents()
         self.print_info()
-        self.add_nodes_randomly(1)
+        self.add_nodes_randomly(20)
         print "********************************"
         self.print_info()
+        self.check_corectness_of_replicas()
         #import pdb; pdb.set_trace()
         #self.add_nodes(S)
         #self.evaluate()
@@ -215,17 +216,14 @@ class Ring(object):
             # go through all the real nodes, and check if their extents are anywhere in the range of the new node
             for node in self.real_nodes:
                 for extent in node.data:
-                    if (range_start > pos and extent < pos) or (extent <= pos and extent > range_start):
+                    #if (range_start => pos and extent < pos) or (extent < pos and extent > range_start):
+                    if (range_start > pos and extent > range_start) or (range_start > pos and extent < pos) or (extent < pos and extent >= range_start):
                         if extent not in transfer_data:
                             transfer_data[extent] = 0
                         transfer_data[extent] += node.data[extent]
 
 
         return transfer_data
-
-
-        
-
 
 
     def redistribute_replicas(self, node):
@@ -291,29 +289,28 @@ class Ring(object):
             for replicatee in node.replicates:
                 node.replicated_data.update(replicatee.data)
 
-
-    def add_nodes_randomly_with_tokens(self, numNodes, tokens):
-        """ Adds numNodes nodes to the ring with virtual nodes, distributed randomly """
-        for i in range (0, numNodes):
-            if (self.count_real_nodes() >= self.Sm):
-                break
-            next_server = random.randint(0, self.keys-1)
-            while (self.is_taken(next_server)):
-                next_server = random.randint(0, self.keys-1)
-            real_node = Node(next_server)
-            self.nodes += [real_node]
-            self.real_nodes += [real_node]
-            # Now add the tokens
-            tokens = 100
-            for i in range (0, tokens):
-                next_server = random.randint(0, self.keys-1)
-                while (self.is_taken(next_server)):
-                    next_server = random.randint(0, self.keys-1)
-                self.nodes += [Node(next_server, real_node)]
-
-
-        self.nodes.sort(key=lambda x: x.position, reverse=False)
+    
+    def check_corectness_of_replicas(self):
+        #for every node, make sure it contains all the data of the nodes it replicates.
+        for node in self.real_nodes:
+            for replicated_node in node.replicates:
+                for extent in replicated_node.data:
+                    if not extent in node.replicated_data:
+                        print "Missing Replica: %d in node %d" % (extent, node.position)
         
+        #check that every extent either doesn't appear, or appears in data and N times in replicas
+        for node in self.real_nodes:
+            for extent in node.data:
+                seen = 0
+                for other_node in self.real_nodes:
+                    if node.position == other_node.position:
+                        continue
+                    if extent in other_node.replicated_data:
+                        seen += 1
+                if seen != self.N:
+                    print "Missing replica of extent %d: onle %d copies found" % (extent, seen)
+
+
 
     def is_taken(self, position):
         for node in self.nodes:
@@ -449,7 +446,7 @@ def main():
     args=parser.parse_args()
 
     #ring = Ring(args.S, args.E, args.N, args.W, args.I, args.Sm, args.K)
-    ring = Ring(3, 10, 2, 100, 1, 20, 100, 1)
+    ring = Ring(5, 200, 3, 100, 1, 20, 100, 1)
     #ring.evaluate()
     #ring.print_info()
 
