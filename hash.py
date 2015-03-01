@@ -2,6 +2,7 @@ import argparse
 import random
 import math
 import sys
+import time
 
 
 class Node(object):
@@ -104,6 +105,7 @@ class Ring(object):
         evaluation_function_options = {0 : self.evaluate_random, 1 : self.evaluate_gaussian_flat, 2 : self.evaluate_gaussian_peak }
         self.eval_function = evaluation_function_options[eval_function]
         
+        self.starttime = time.time()
         #self.add_nodes_randomly(3)
         self.initialize_ring()
         self.insert_extents()
@@ -438,6 +440,11 @@ class Ring(object):
         percentage_offset = dev * 100 / desired
         print "Function: %s Tokens: %d Load Balancing: %s Servers: %d Standard deviation: %d (%d%% off)" % (self.eval_function.__name__, self.tokens, str(self.lb),
             self.count_real_nodes(), dev, percentage_offset)
+        outputfile = open('output.csv','a')
+        stringvalue = " %d , %s , %d , %s , %d , %d , %d%% \n" % (self.starttime, self.eval_function.__name__, self.tokens, str(self.lb),
+            self.count_real_nodes(), dev, percentage_offset, )
+        outputfile.write(stringvalue)
+        outputfile.close()
 
 
     def get_standard_deviation(self):
