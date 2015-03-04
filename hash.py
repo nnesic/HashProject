@@ -377,36 +377,36 @@ class Ring(object):
 
 
     def add_servers_and_evaluate(self, func):
-        print "Simulate with inital config"
+        print "Simulate with initial config"
         func()
         while len(self.real_nodes) < self.Sm:
             print "Adding servers"
             self.add_nodes(self.I)
             func()
 
-    def add_servers_and_evaluate_random(self, func):
-        print "Simulate with inital config"
-        self.evaluate_random()
-        while len(self.real_nodes) < self.Sm:
-            print "Adding servers"
-            self.add_nodes(self.I)
-            self.evaluate_random()
-
-    def add_servers_and_evaluate_flat(self, func):
-        self.evaluate_gaussian_flat()
-        while len(self.real_nodes) < self.Sm:
-            print "Adding servers"
-            self.add_nodes(self.I)
-            self.evaluate_gaussian_flat()
-
-    def add_servers_and_evaluate_peak(self, func):
-        func()
-        while len(self.real_nodes) < self.Sm:
-            print "Adding servers"
-            self.add_nodes(self.I)
-            #self.evaluate_gaussian_peak()
-            func()
-
+#    def add_servers_and_evaluate_random(self, func):
+#        print "Simulate with inital config"
+#        self.evaluate_random()
+#        while len(self.real_nodes) < self.Sm:
+#            print "Adding servers"
+#            self.add_nodes(self.I)
+#            self.evaluate_random()
+#
+#    def add_servers_and_evaluate_flat(self, func):
+#        self.evaluate_gaussian_flat()
+#        while len(self.real_nodes) < self.Sm:
+#            print "Adding servers"
+#            self.add_nodes(self.I)
+#            self.evaluate_gaussian_flat()
+#
+#    def add_servers_and_evaluate_peak(self, func):
+#        func()
+#        while len(self.real_nodes) < self.Sm:
+#            print "Adding servers"
+#            self.add_nodes(self.I)
+#            #self.evaluate_gaussian_peak()
+#            func()
+#
     def evaluate_random(self):
         for node in self.nodes:
             node.clean_writes()
