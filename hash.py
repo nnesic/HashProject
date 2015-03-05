@@ -102,8 +102,11 @@ class Ring(object):
         self.lb = lb
         self.add_nodes = self.add_nodes_randomly  #method used to add nodes
 
+
         evaluation_function_options = {0 : self.evaluate_random, 1 : self.evaluate_gaussian_flat, 2 : self.evaluate_gaussian_peak }
         self.eval_function = evaluation_function_options[eval_function]
+        
+
         
         self.starttime = time.time()
         #self.add_nodes_randomly(3)
@@ -419,7 +422,7 @@ class Ring(object):
         for node in self.nodes:
             node.clean_writes()
         for i in range(0, self.W):
-            key_hash = int(math.ceil(random.gauss((self.E-1)/2, self.get_standard_deviation())))
+            key_hash = int(math.ceil(random.gauss((self.E-1)/2,  math.sqrt((self.E-1)*0.5))))#self.get_standard_deviation())))
             # Need to check for values out of range
             self.write_to_node(key_hash)
         self.print_info()
@@ -482,12 +485,14 @@ def main():
     parser.add_argument('-T', type=int, help='Number of tokens per node', default=0)
     parser.add_argument('-lb', help='Turn on load balancing', action='store_true')
     parser.add_argument('-D', type=int, help='Write distribution model', default=0)
+    parser.add_argument('-R', type=int, help='Repeats of simulation', default=1)
  
 
     args=parser.parse_args()
 
     # python -lb -T 5 
-    ring = Ring(args.S, args.E, args.N, args.W, args.I, args.Sm, args.K, args.T, args.lb, args.D)
+    for i in range(0,args.R): 
+        ring = Ring(args.S, args.E, args.N, args.W, args.I, args.Sm, args.K, args.T, args.lb, args.D)
 
 
 
