@@ -495,7 +495,5 @@ def main():
         ring = Ring(args.S, args.E, args.N, args.W, args.I, args.Sm, args.K, args.T, args.lb, args.D)
 
 
-
-
 if __name__ == '__main__':
     main()  
