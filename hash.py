@@ -492,6 +492,8 @@ def main():
 
     # python -lb -T 5 
     for i in range(0,args.R): 
+        print "********************************"
+        print "Simulation run: %d / %d" % (i+1, args.R)
         ring = Ring(args.S, args.E, args.N, args.W, args.I, args.Sm, args.K, args.T, args.lb, args.D)
 
 
